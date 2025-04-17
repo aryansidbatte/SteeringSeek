@@ -23,35 +23,48 @@ public class SteeringBehavior : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        // Assignment 1: If a single target was set, move to that target
-        //                If a path was set, follow that path ("tightly")
-
-        // you can use kinematic.SetDesiredSpeed(...) and kinematic.SetDesiredRotationalVelocity(...)
-        //    to "request" acceleration/decceleration to a target speed/rotational velocity
-
-        // Direction to target
+        // Calculate base directional information
         Vector3 direction = target - transform.position;
-        // Current heading
         Vector3 heading = transform.forward;
-        // Angle between heading and direction
         float angleToTarget = Vector3.SignedAngle(heading, direction, Vector3.up);
-
-        // Distance to target
         float distanceToTarget = direction.magnitude;
-        // Normalize direction vector
         direction.Normalize();
-        
-        // Set desired speed and rotational velocity based on distance to target
+
+        // Path following logic
         if (path != null && path.Count > 0)
         {
-            // If we have a path, follow it
+            // Always update target to the current waypoint
             target = path[0];
-            distanceToTarget = Vector3.Distance(transform.position, target);
+
+            // Recalculate direction information with updated target
+            direction = target - transform.position;
+            distanceToTarget = direction.magnitude;
+            angleToTarget = Vector3.SignedAngle(heading, direction, Vector3.up);
+            direction.Normalize();
+
+            // Check if we've reached the current waypoint
             if (distanceToTarget < 1.0f)
             {
+                // Remove this waypoint from the path
                 path.RemoveAt(0);
+
+                // If we still have waypoints, update to the next one
+                if (path.Count > 0)
+                {
+                    target = path[0];
+                    // Recalculate for the new target
+                    direction = target - transform.position;
+                    distanceToTarget = direction.magnitude;
+                    angleToTarget = Vector3.SignedAngle(heading, direction, Vector3.up);
+                    direction.Normalize();
+                }
             }
+
+            // Set desired speed and rotational velocity based on distance to target
+            kinematic.SetDesiredSpeed(Mathf.Clamp(distanceToTarget, 0.0f, kinematic.max_speed));
+            kinematic.SetDesiredRotationalVelocity(angleToTarget * 2.0f);
         }
+        // This is the single target behavior
         else if (distanceToTarget < 1.0f)
         {
             // If we are close to the target, stop
@@ -69,6 +82,12 @@ public class SteeringBehavior : MonoBehaviour
         if (label != null)
         {
             label.text = "Distance to target: " + distanceToTarget.ToString("F2") + " m";
+
+            // Added path information to debug label
+            if (path != null && path.Count > 0)
+            {
+                label.text += "\nWaypoints left: " + path.Count;
+            }
         }
     }
 
